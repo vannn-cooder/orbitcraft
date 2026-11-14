@@ -1,0 +1,147 @@
+[
+  {
+    "id": "mission_1_leo",
+    "name": "Mission 1 — Low Earth Observation (TerraWatch-1)",
+    "description": "Rancang satelit observasi Bumi pada Orbit Rendah (LEO) untuk memantau perubahan tutupan lahan, deforestasi, dan suhu permukaan laut. Sebagai misi perdana, fokuskan desain pada efisiensi massa dan keseimbangan daya selama melewati bayangan Bumi (eclipse).",
+    "difficulty": "Beginner",
+    "unlockOrder": 1,
+    "launchVehicle": {
+      "name": "Zephyr-Light Rideshare Vehicle",
+      "note": "Kapasitas kargo sekunder menuju Low Earth Orbit (Fictional Game-Balanced Launcher)"
+    },
+    "payloadCapacityKg": 260,
+    "targetOrbit": "Sun-Synchronous Low Earth Orbit (600 km Altitude)",
+    "requiredDeltaV": 320,
+    "maximumBudget": 680000,
+    "requiredScientificValue": 45,
+    "missionDuration": "2 Years (Nominal Operations)",
+    "powerRequirements": {
+      "sunlightDurationHours": 1.0,
+      "eclipseDurationHours": 0.55,
+      "solarFluxMultiplier": 1.0,
+      "minPowerMarginW": 10,
+      "requireBatteryForEclipse": true
+    },
+    "communicationRequirements": {
+      "observationWindowHours": 2.0,
+      "commWindowHours": 0.8,
+      "minDownlinkRateMbps": 8,
+      "distanceEfficiencyFactor": 1.0
+    },
+    "specialConstraints": {
+      "requiredCategories": ["bus", "payload", "power", "propulsion", "communication"],
+      "requiredSubRoles": ["avionics"],
+      "mandatoryPayloadIds": [],
+      "notes": "Wajib menyertakan minimal 1 Spacecraft Bus, 1 Payload Ilmiah, sistem pembangkit daya + baterai, propulsi untuk manuver orbit/deorbit, antena komunikasi, dan Onboard Computer (avionics)."
+    }
+  },
+  {
+    "id": "mission_2_lunar",
+    "name": "Mission 2 — Lunar Reconnaissance (SeleneMapper)",
+    "description": "Kembangkan wahana pengorbit Bulan untuk memetakan mineralogi kawah kutub selatan dan mendeteksi cadangan es air. Wahana dilepaskan pada lintasan Trans-Lunar Injection (TLI) dan harus melakukan pembakaran propulsi mandiri untuk Lunar Orbit Insertion (LOI).",
+    "difficulty": "Intermediate",
+    "unlockOrder": 2,
+    "launchVehicle": {
+      "name": "Vulcan-Centaur Medium Class (Simulated Block)",
+      "note": "Kapasitas injeksi langsung menuju lintasan Cis-Lunar (Fictional Game-Balanced Parameter)"
+    },
+    "payloadCapacityKg": 680,
+    "targetOrbit": "Low Lunar Polar Orbit (100 km Altitude)",
+    "requiredDeltaV": 1150,
+    "maximumBudget": 1350000,
+    "requiredScientificValue": 95,
+    "missionDuration": "3 Years (Lunar Mapping Phase)",
+    "powerRequirements": {
+      "sunlightDurationHours": 1.3,
+      "eclipseDurationHours": 0.75,
+      "solarFluxMultiplier": 1.0,
+      "minPowerMarginW": 15,
+      "requireBatteryForEclipse": true
+    },
+    "communicationRequirements": {
+      "observationWindowHours": 3.0,
+      "commWindowHours": 1.2,
+      "minDownlinkRateMbps": 25,
+      "distanceEfficiencyFactor": 0.85
+    },
+    "specialConstraints": {
+      "requiredCategories": ["bus", "payload", "power", "propulsion", "communication"],
+      "requiredSubRoles": ["avionics", "attitude"],
+      "mandatoryPayloadIds": ["payload_spectrometer"],
+      "notes": "Membutuhkan Planetary Spectrometer untuk deteksi hidrogen/es kawah, serta sistem kendali sikap (Reaction Wheels) untuk pemetaan presisi."
+    }
+  },
+  {
+    "id": "mission_3_mars",
+    "name": "Mission 3 — Mars Orbital Survey (Ares Climate Explorer)",
+    "description": "Luncurkan pengorbit ilmiah menuju Mars untuk meneliti dinamika atmosfer, badai debu global, dan jejak hidrotermal purba. Perhatikan bahwa pada jarak 1.52 AU dari Matahari, intensitas cahaya matahari turun menjadi 43% dibandingkan di orbit Bumi.",
+    "difficulty": "Advanced",
+    "unlockOrder": 3,
+    "launchVehicle": {
+      "name": "Falcon-Heavy Interplanetary Configuration (Simulated)",
+      "note": "Injeksi lintasan transfer Hohmann menuju Mars (Fictional Game-Balanced Parameter)"
+    },
+    "payloadCapacityKg": 960,
+    "targetOrbit": "Mars Sun-Synchronous Mapping Orbit (400 km Altitude)",
+    "requiredDeltaV": 1750,
+    "maximumBudget": 1950000,
+    "requiredScientificValue": 145,
+    "missionDuration": "5 Years (1 Cruise + 2 Mars Years)",
+    "powerRequirements": {
+      "sunlightDurationHours": 1.5,
+      "eclipseDurationHours": 0.85,
+      "solarFluxMultiplier": 0.43,
+      "minPowerMarginW": 20,
+      "requireBatteryForEclipse": true
+    },
+    "communicationRequirements": {
+      "observationWindowHours": 4.0,
+      "commWindowHours": 1.2,
+      "minDownlinkRateMbps": 35,
+      "distanceEfficiencyFactor": 0.5
+    },
+    "specialConstraints": {
+      "requiredCategories": ["bus", "payload", "power", "propulsion", "communication"],
+      "requiredSubRoles": ["avionics", "thermal", "attitude", "navigation"],
+      "mandatoryPayloadIds": ["payload_hyperspectral"],
+      "notes": "Wajib menggunakan Hyperspectral Sensor, sistem kontrol termal aktif (thermal), Star Tracker (navigation), serta Reaction Wheels (attitude) untuk bertahan di lingkungan antarplanet."
+    }
+  },
+  {
+    "id": "mission_4_deepspace",
+    "name": "Mission 4 — Deep Space Exploration (Jovian Pioneer)",
+    "description": "Rancang misi eksplorasi jarak jauh menuju sistem satelit es Jupiter pada jarak 5.2 AU. Pada jarak ini, fluks matahari hanya tersisa 4% dari level Bumi, sehingga panel surya biasa hampir tidak berguna. Anda harus mengandalkan tenaga nuklir radioisotop (RTG), propulsi efisiensi tinggi (Ion/Electric), dan antena High-Gain.",
+    "difficulty": "Expert",
+    "unlockOrder": 4,
+    "launchVehicle": {
+      "name": "SLS Block-1B Cargo Equivalent (Simulated Deep-Space Launcher)",
+      "note": "Injeksi energi karakteristik tinggi menuju Tata Surya Luar (Fictional Game-Balanced Parameter)"
+    },
+    "payloadCapacityKg": 1250,
+    "targetOrbit": "Jovian System High-Radiation Capture Orbit (5.2 AU)",
+    "requiredDeltaV": 4200,
+    "maximumBudget": 2900000,
+    "requiredScientificValue": 190,
+    "missionDuration": "10 Years (Deep Space Cruise & Orbital Tour)",
+    "powerRequirements": {
+      "sunlightDurationHours": 2.0,
+      "eclipseDurationHours": 1.5,
+      "solarFluxMultiplier": 0.04,
+      "minPowerMarginW": 25,
+      "requireBatteryForEclipse": true
+    },
+    "communicationRequirements": {
+      "observationWindowHours": 5.0,
+      "commWindowHours": 1.5,
+      "minDownlinkRateMbps": 90,
+      "distanceEfficiencyFactor": 0.35
+    },
+    "specialConstraints": {
+      "requiredCategories": ["bus", "payload", "power", "propulsion", "communication"],
+      "requiredSubRoles": ["avionics", "thermal", "attitude", "navigation"],
+      "mandatoryPayloadIds": ["payload_magnetometer", "payload_radiation"],
+      "requiredBusId": "bus_deepspace",
+      "notes": "Wajib menggunakan Deep-Space Spacecraft Bus yang tahan radiasi ekstrem, serta menyertakan Magnetometer dan Radiation Detector untuk memetakan sabuk magnetosfer raksasa."
+    }
+  }
+]
