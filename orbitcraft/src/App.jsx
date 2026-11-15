@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from './lib/supabase.js';
 import { useGameLogic } from './hooks/UseGameLogic';
 import Header from './components/dashboard/Header.jsx';
 import MissionSelector from './components/mission/MissionSelector.jsx';
@@ -13,8 +14,26 @@ import MissionSimulationModal from './components/results/MissionSimulationModal.
 import PostMissionDebrief from './components/results/PostMissionDebrief.jsx';
 import FlightHandbookModal from './components/common/FlightHandbookModal.jsx';
 import OrbitalTrajectoryCanvas from './components/engineering/OrbitalTrajectoryCanvas.jsx';
+import LeaderboardModal from './components/results/LeaderboardModal.jsx';
+import BootSequence from './components/common/BootSequence.jsx';
 
 export default function App() {
+  const [isBooting, setIsBooting] = useState(true);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [isDebriefOpen, setIsDebriefOpen] = useState(false);
+  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
+
+  // Callsign Pemain / Pilot
+  const [callsign, setCallsign] = useState(() => {
+    return localStorage.getItem('orbitcraft_callsign') || 'Cmdr. Walsen';
+  });
+
+  const handleCallsignChange = (name) => {
+    setCallsign(name);
+    localStorage.setItem('orbitcraft_callsign', name);
+  };
+
   const {
     missions,
     components,
@@ -31,10 +50,6 @@ export default function App() {
     resetAllProgress
   } = useGameLogic();
 
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [isDebriefOpen, setIsDebriefOpen] = useState(false);
-  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
-
   const handleStartLaunch = () => {
     setIsSimulating(true);
   };
@@ -42,8 +57,48 @@ export default function App() {
   const handleSimulationComplete = () => {
     setIsSimulating(false);
     setIsDebriefOpen(true);
+
     if (validationResult?.isValid && activeMission?.id) {
       recordMissionSuccess(activeMission.id);
+
+      const scoreCalc = Math.round(
+        (validationResult.deltaV || 1000) * 1.5 - (validationResult.totalMass || 500) * 0.4
+      );
+      const finalScore = Math.max(scoreCalc, 2500);
+      const finalDeltaV = Math.round(validationResult.deltaV || 0);
+      const pilotName = callsign.trim() || 'Cmdr. Walsen';
+
+      // 1. Kirim telemetri ke database Supabase
+      supabase
+        .from('leaderboard')
+        .insert([
+          {
+            callsign: pilotName,
+            mission: activeMission.name,
+            score: finalScore,
+            delta_v: finalDeltaV
+          }
+        ])
+        .then(({ error }) => {
+          if (error) console.error('Gagal simpan ke Supabase:', error);
+        });
+
+      // 2. Cadangan penyimpanan browser lokal
+      try {
+        const saved = JSON.parse(localStorage.getItem('orbitcraft_leaderboard') || '[]');
+        const localRun = {
+          id: Date.now(),
+          callsign: pilotName,
+          mission: activeMission.name,
+          score: finalScore,
+          deltaV: finalDeltaV,
+          date: new Date().toISOString().split('T')[0],
+          isNew: true
+        };
+        localStorage.setItem('orbitcraft_leaderboard', JSON.stringify([localRun, ...saved]));
+      } catch (e) {
+        console.error('Error saving local backup:', e);
+      }
     }
   };
 
@@ -63,19 +118,26 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
-      {/* Top Header */}
+      
+      {/* 1. Layar Boot Sequence Awal */}
+      {isBooting && <BootSequence onComplete={() => setIsBooting(false)} />}
+
+      {/* 2. Top Header Navigasi */}
       <Header
+        callsign={callsign}
+        onCallsignChange={handleCallsignChange}
         validationResult={validationResult}
         activeMission={activeMission}
         completedCount={completedMissionIds.length}
         totalMissions={missions.length}
         onResetProgress={resetAllProgress}
         onOpenHandbook={() => setIsHandbookOpen(true)}
+        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
       />
 
-      {/* Main Mission Control Workbench */}
+      {/* 3. Workbench Mission Control Utama */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
-        {/* 1. Mission Flight Selector */}
+        {/* Pemilih Misi */}
         <section>
           <MissionSelector
             missions={missions}
@@ -86,17 +148,17 @@ export default function App() {
           />
         </section>
 
-        {/* 2. Mission Briefing Dossier */}
+        {/* Dossier Ringkasan Misi */}
         <section>
           <MissionBriefing mission={activeMission} />
         </section>
 
-        {/* 3. Real-Time Telemetry & Engineering Gauges */}
+        {/* Indikator Telemetri & Gauge Daya */}
         <section>
           <EngineeringGauges validationResult={validationResult} />
         </section>
 
-        {/* 4. Visual Diagnostics: Recharts Graphs */}
+        {/* Grafik Diagnostik Trajektori */}
         <section>
           <TelemetryCharts
             validationResult={validationResult}
@@ -104,15 +166,16 @@ export default function App() {
           />
         </section>
 
-       {/* 5. Assembly Bay, Visual Schematic & Component Catalog */}
+        {/* Area Perakitan & Katalog Komponen */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Katalog dengan dukungan onClearAll untuk Preset NASA */}
           <ComponentCatalog
             components={components}
             onAddComponent={addComponent}
+            onClearAll={clearAssembly}
           />
 
           <div className="space-y-4">
-            {/* Visual 2D CAD Schematic & Keplerian Orbit Visualizer */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SpacecraftSchematic selectedComponents={selectedComponents} />
               <OrbitalTrajectoryCanvas 
@@ -121,7 +184,6 @@ export default function App() {
               />
             </div>
 
-            {/* Modular Slot Bay List */}
             <SpacecraftSlotBay
               selectedComponents={selectedComponents}
               onRemoveComponent={removeComponentAtIndex}
@@ -130,7 +192,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* 6. Diagnostic Validation Console */}
+        {/* Konsol Validasi Peluncuran */}
         <section>
           <ValidationConsole
             validationResult={validationResult}
@@ -139,7 +201,7 @@ export default function App() {
         </section>
       </main>
 
-      {/* 7. Flight Simulation Modal */}
+      {/* 4. Modal Simulasi Penerbangan & Anomali */}
       <MissionSimulationModal
         isOpen={isSimulating}
         mission={activeMission}
@@ -147,7 +209,7 @@ export default function App() {
         onSimulationComplete={handleSimulationComplete}
       />
 
-      {/* 8. Post-Mission Debrief & Scoring Modal */}
+      {/* 5. Modal Evaluasi Misi & Debrief */}
       <PostMissionDebrief
         isOpen={isDebriefOpen}
         mission={activeMission}
@@ -156,10 +218,16 @@ export default function App() {
         onReconfigure={handleCloseDebrief}
       />
 
-      {/* 9. Educational Flight Handbook Modal */}
+      {/* 6. Modal Handbook Edukasi */}
       <FlightHandbookModal
         isOpen={isHandbookOpen}
         onClose={() => setIsHandbookOpen(false)}
+      />
+
+      {/* 7. Modal Leaderboard Global Supabase */}
+      <LeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
       />
 
       {/* Footer */}

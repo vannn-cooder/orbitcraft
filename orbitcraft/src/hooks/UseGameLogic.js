@@ -11,28 +11,32 @@ import { validateMission } from '../engine/validation.js';
 const STORAGE_KEY = 'orbitcraft_game_state_v1';
 
 export function useGameLogic() {
-  const [missions] = useState(missionsData);
-  const [components] = useState(componentsData);
-  const [activeMissionId, setActiveMissionId] = useState(missionsData[0]?.id || null);
-  const [selectedComponentIds, setSelectedComponentIds] = useState([]);
+  const [missions] = useState(missionsData || []);
+  const [components] = useState(componentsData || []);
+  const [activeMissionId, setActiveMissionId] = useState(missionsData?.[0]?.id || null);
+  const [selectedComponents, setSelectedComponents] = useState([]);
   const [unlockedMissionIds, setUnlockedMissionIds] = useState(['mission_1_leo']);
   const [completedMissionIds, setCompletedMissionIds] = useState([]);
 
-  // Load saved progression on mount
+  // 1. Muat progress yang tersimpan di browser saat pertama kali dibuka
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.unlockedMissionIds) setUnlockedMissionIds(parsed.unlockedMissionIds);
-        if (parsed.completedMissionIds) setCompletedMissionIds(parsed.completedMissionIds);
+        if (parsed.unlockedMissionIds && Array.isArray(parsed.unlockedMissionIds)) {
+          setUnlockedMissionIds(parsed.unlockedMissionIds);
+        }
+        if (parsed.completedMissionIds && Array.isArray(parsed.completedMissionIds)) {
+          setCompletedMissionIds(parsed.completedMissionIds);
+        }
       }
     } catch (e) {
-      console.warn('Could not read saved game state from localStorage:', e);
+      console.warn('Gagal membaca saved state dari localStorage:', e);
     }
   }, []);
 
-  // Persist progression whenever unlocked/completed lists change
+  // 2. Simpan progress misi secara otomatis jika ada misi baru yang selesai
   useEffect(() => {
     try {
       const payload = JSON.stringify({
@@ -41,61 +45,85 @@ export function useGameLogic() {
       });
       localStorage.setItem(STORAGE_KEY, payload);
     } catch (e) {
-      console.warn('Could not save game state to localStorage:', e);
+      console.warn('Gagal menyimpan state ke localStorage:', e);
     }
   }, [unlockedMissionIds, completedMissionIds]);
 
-  // Current active mission object
+  // Data detail misi aktif
   const activeMission = useMemo(() => {
     return missions.find((m) => m.id === activeMissionId) || missions[0] || null;
   }, [missions, activeMissionId]);
 
-  // Array of actual component objects currently on the spacecraft
-  const selectedComponents = useMemo(() => {
-    return selectedComponentIds
-      .map((id) => components.find((c) => c.id === id))
-      .filter(Boolean);
-  }, [selectedComponentIds, components]);
-
-  // Real-time engineering validation from engine
+  // Kalkulasi fisika roket (Delta-V, Massa, Daya, Validasi)
   const validationResult = useMemo(() => {
     return validateMission(selectedComponents, activeMission);
   }, [selectedComponents, activeMission]);
 
-  // Actions
+  // Ganti misi terpilih
   const selectMission = (missionId) => {
     if (unlockedMissionIds.includes(missionId)) {
       setActiveMissionId(missionId);
     }
   };
 
-  const addComponent = (componentId) => {
-    const component = components.find((c) => c.id === componentId);
-    if (!component) return;
+  // Tambah modul ke slot wahana
+  const addComponent = (componentInput) => {
+    // 1. Ambil objek modul baik jika input berupa objek utuh maupun ID string
+    let compToAdd = null;
+    if (typeof componentInput === 'object' && componentInput !== null) {
+      compToAdd = componentInput;
+    } else {
+      compToAdd = components.find(
+        (c) => String(c.id).toLowerCase() === String(componentInput).toLowerCase()
+      );
+    }
 
-    // Bus category rule: only 1 bus permitted. Replace existing bus if selected.
-    if (component.category === 'bus') {
-      setSelectedComponentIds((prev) => {
-        const nonBusIds = prev.filter((id) => {
-          const comp = components.find((c) => c.id === id);
-          return comp && comp.category !== 'bus';
-        });
-        return [componentId, ...nonBusIds];
-      });
+    if (!compToAdd) {
+      console.warn('[UseGameLogic] Modul tidak ditemukan di katalog:', componentInput);
       return;
     }
 
-    setSelectedComponentIds((prev) => [...prev, componentId]);
+    // 2. Baca batas slot misi (Prioritaskan properti misi, default ke 8 jika tidak ada)
+    const rawLimit = 
+      activeMission?.maxSlots ??
+      activeMission?.slotLimit ??
+      activeMission?.slots ??
+      activeMission?.max_slots ??
+      activeMission?.maxComponents ??
+      8;
+
+    const maxSlots = Number(rawLimit) > 0 ? Number(rawLimit) : 8;
+
+    // 3. Masukkan ke slot
+    setSelectedComponents((prev) => {
+      const currentList = Array.isArray(prev) ? prev : [];
+      if (currentList.length >= maxSlots) {
+        console.warn(`[UseGameLogic] Slot penuh! (${currentList.length}/${maxSlots})`);
+        return currentList;
+      }
+
+      const itemWithInstance = {
+        ...compToAdd,
+        instanceId: `${compToAdd.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+      };
+
+      const updated = [...currentList, itemWithInstance];
+      console.log(`[UseGameLogic] Modul masuk: ${compToAdd.name || compToAdd.id} (${updated.length}/${maxSlots})`);
+      return updated;
+    });
   };
 
+  // Hapus modul tertentu berdasarkan index urutan slot
   const removeComponentAtIndex = (indexToRemove) => {
-    setSelectedComponentIds((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setSelectedComponents((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
+  // Bersihkan seluruh slot wahana
   const clearAssembly = () => {
-    setSelectedComponentIds([]);
+    setSelectedComponents([]);
   };
 
+  // Catat keberhasilan misi dan buka kunci level selanjutnya
   const recordMissionSuccess = (missionId) => {
     setCompletedMissionIds((prev) => {
       if (!prev.includes(missionId)) {
@@ -104,7 +132,6 @@ export function useGameLogic() {
       return prev;
     });
 
-    // Unlock next mission in sequence
     const currentIndex = missions.findIndex((m) => m.id === missionId);
     if (currentIndex >= 0 && currentIndex + 1 < missions.length) {
       const nextMission = missions[currentIndex + 1];
@@ -117,10 +144,11 @@ export function useGameLogic() {
     }
   };
 
+  // Reset semua progres permainan
   const resetAllProgress = () => {
     setUnlockedMissionIds(['mission_1_leo']);
     setCompletedMissionIds([]);
-    setSelectedComponentIds([]);
+    setSelectedComponents([]);
     setActiveMissionId('mission_1_leo');
     localStorage.removeItem(STORAGE_KEY);
   };
@@ -130,7 +158,7 @@ export function useGameLogic() {
     components,
     activeMission,
     selectedComponents,
-    selectedComponentIds,
+    setSelectedComponents,
     unlockedMissionIds,
     completedMissionIds,
     validationResult,
@@ -142,3 +170,5 @@ export function useGameLogic() {
     resetAllProgress
   };
 }
+
+export default useGameLogic;
